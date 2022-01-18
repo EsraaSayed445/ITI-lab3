@@ -37,7 +37,7 @@ git commit -m "message"
 git push
 */
 
-app.use('/user',userRouter)
+app.use('/users',userRouter)
 
 app.use((err,req,res,next)=>{
   res.status(err.status).send(err.message)
