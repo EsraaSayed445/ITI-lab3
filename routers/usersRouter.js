@@ -1,5 +1,5 @@
 const fs = require("fs");
-const { validateUser } = require("../userHelpers");
+const { validateUser,validateloginUser } = require("../userHelpers");
 const express = require("express");
 const router = express.Router();
 const { v4: uuidv4 } = require("uuid");
@@ -59,7 +59,7 @@ router.post("/", validateUser, async (req, res, next) => {
   })
   
   
-  router.post('/login', async (req,res,next) => {
+  router.post('/login',validateloginUser, async (req,res,next) => {
     try {
         const {username , password} = req.body;
   
@@ -68,12 +68,7 @@ router.post("/", validateUser, async (req, res, next) => {
   
         const uname = users.find((ele)=>ele.username === username && ele.password === password)
         
-        if(uname){
-            return next({status:200,message:"login success"}) 
-        }
-        else{
-           return  next({status:403,message:"login field"}) 
-        }
+        return uname ? res.send("sucess") : next({status:401,message:"login field"})
         
     }catch(error){
         next({status:500, internalMessage:error.message})
@@ -86,10 +81,10 @@ router.post("/", validateUser, async (req, res, next) => {
       const id = req.params.userId
       const data = await fs.promises.readFile('./user.json',{encoding:'utf8'})
       const users = JSON.parse(data);
-      const filteredUsers = users.filter(user=>user.id===id)
-      res.status(200).send(filteredUsers)
+      const findUsers = users.find(user=>user.id===id)
+      return findUsers.length === 0 ? next({status:404,message:"not found field"}) : res.status(200).send(finddUsers)
     } catch (error) {
-        next({status:404, message:"not found"})
+        next({status:500, internalMessage:error.message})
     }
   
   });
@@ -100,10 +95,16 @@ router.post("/", validateUser, async (req, res, next) => {
       const data = await fs.promises.readFile('./user.json',{encoding:'utf8'})
       const users = JSON.parse(data);
       const filteredUsers = users.filter(user=>user.id !== id)
-      fs.promises.writeFile('./user.json',JSON.stringify(filteredUsers),{encoding:'utf8'})
-      res.status(200).send("deleted user")
+      if(filteredUsers){
+        fs.promises.writeFile('./user.json',JSON.stringify(filteredUsers),{encoding:'utf8'})
+        res.status(200).send("deleted user")
+      }
+      else{
+        next({status:404,message:"not found field"})
+      }
+    
   } catch (error) {
-      next({status:404, message:"error"})
+    next({status:500, internalMessage:error.message})
   }
   });
   
