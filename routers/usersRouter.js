@@ -21,7 +21,7 @@ router.post("/", validateUser, async (req, res, next) => {
     }
   });
   
-  router.patch("/:userId", async (req, res, next) => {
+  router.patch("/:userId",validateloginUser, async (req, res, next) => {
     try {
         const { username , password , age } = req.body;
         const data = await fs.promises.readFile('./user.json',{encoding:'utf8'})

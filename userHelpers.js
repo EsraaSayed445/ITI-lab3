@@ -24,10 +24,10 @@ const validateloginUser = async (req,res,next) => {
     const {username , password} = req.body;
     if(!username){
         return  next({status:400,message:"username is required"}) 
-       }
-      else if(!password){
-          return next({status:400,message:"password is required"}) 
-       }
+    }
+    else if(!password){
+        return next({status:400,message:"password is required"}) 
+    }
        next()
 }
 
