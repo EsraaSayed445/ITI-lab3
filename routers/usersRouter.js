@@ -1,57 +1,62 @@
-const fs = require("fs");
 const { validateUser,validateloginUser } = require("../userHelpers");
 const express = require("express");
 const router = express.Router();
-const { v4: uuidv4 } = require("uuid");
+var jwt = require('jsonwebtoken');
+const serverConfig = require('../serverConfig')
+const { auth } = require('../middlewares/auth')
+const User = require('../models/User')
+require('../mongoConnect')
 
-router.post("/", validateUser, async (req, res, next) => {
-    try {
-        const { username, age, password } = req.body;
-        const data = await fs.promises
-            .readFile("./user.json", { encoding: "utf8" })
-            .then((data) => JSON.parse(data));
-        const id = uuidv4();
-        data.push({ id, username, age, password });
-        await fs.promises.writeFile("./user.json", JSON.stringify(data), {
-            encoding: "utf8",
-        });
-        res.send({ id, message: "sucess" });
-    } catch (error) {
+/* 
+Lab 5: 
+user database instead of files
+user jwt to authenticate users after login 
+check if the user delete/patch/get his own document
+checl if user who use GET /user is authenticated
+*/
+
+
+router.post("/", async (req, res, next) => {
+  try {
+    const { username , age , password}=req.body;
+     const user = new User({username, age, password})
+      await user.save()
+      res.send({ message: "sucess" });
+  } catch (error) {
+    next({ status: 500, internalMessage: error.message });
+  }
+  });
+  
+router.post('/login', async (req,res,next) => {
+    const {username, password} = req.body
+    const user = await User.findOne({ username })
+    if(!user) return next({status:401, message:"username or passord is incorrect"})
+    if(user.password !== password) next({status:401, message:"username or passord is incorrect"})
+    const payload = {id:user.id }
+    const token = jwt.sign(payload, serverConfig.secret);
+    return res.status(200).send({message:"Logged in Successfully", token}) 
+});
+
+
+router.patch("/:userId",auth, async (req, res, next) => {
+      if(req.user.id !== req.params.userId) next({status:403, message:"Authorization error 2"})
+      try {
+        const {password, age} = req.body
+        req.user.password = password
+        req.user.age = age
+        await req.user.save()
+        res.send("sucess")
+      } catch (error) {
         next({ status: 500, internalMessage: error.message });
-    }
-  });
-  
-  router.patch("/:userId",validateloginUser, async (req, res, next) => {
-    try {
-        const { username , password , age } = req.body;
-        const data = await fs.promises.readFile('./user.json',{encoding:'utf8'})
-        const users = JSON.parse(data);
-        const newUser = users.map((user)=> {
-            if(user.id !== req.params.userId) return user ;
-            return {
-                username,
-                password,
-                age,
-                id:req.params.userId,
-            };
-      
-        })
-        fs.promises.writeFile("./user.json",JSON.stringify(newUser),{encoding:"utf8"});
-        res.status(200).send("user edited")
-    } catch (error) {
-        next({status:500, internalMessage:error.message})
-    }
+      }
   });
   
   
-  router.get('/', async (req,res,next)=>{
+  router.get('/', auth,async (req,res,next)=>{
     try {
-    const age = Number(req.query.age)
-    const users = await fs.promises
-    .readFile("./user.json", { encoding: "utf8" })
-    .then((data) => JSON.parse(data));
-    const filteredUsers = users.filter(user=>user.age===age)
-    res.send(filteredUsers)
+      const query = req.query.age ? {age:req.query.age}:{}
+      const users = await User.find(query,{password:0})
+      res.send(users)
     } catch (error) {
     next({ status: 500, internalMessage: error.message });
     }
@@ -59,52 +64,27 @@ router.post("/", validateUser, async (req, res, next) => {
   })
   
   
-  router.post('/login',validateloginUser, async (req,res,next) => {
+  router.get('/:userId',auth, async (req,res,next)=>{
     try {
-        const {username , password} = req.body;
-  
-        const data = await fs.promises.readFile('./user.json',{encoding:'utf8'});
-        const users = JSON.parse(data);
-  
-        const uname = users.find((ele)=>ele.username === username && ele.password === password)
-        
-        return uname ? res.send("sucess") : next({status:401,message:"login field"})
-        
-    }catch(error){
-        next({status:500, internalMessage:error.message})
-    }
-  
-  }); 
-  
-  router.get('/:userId', async (req,res,next)=>{
-    try {
-      const id = req.params.userId
-      const data = await fs.promises.readFile('./user.json',{encoding:'utf8'})
-      const users = JSON.parse(data);
-      const findUsers = users.find(user=>user.id===id)
-      return findUsers ? res.status(200).send(finddUsers):next({status:404,message:"not found field"})
+      const id = req.params.userId 
+      const users = await User.findById(id)
+      res.send(users) 
     } catch (error) {
         next({status:500, internalMessage:error.message})
     }
-  
   });
   
-  router.delete('/:userId', async (req,res,next)=>{
-    try {
-      const id = req.params.userId
-      const data = await fs.promises.readFile('./user.json',{encoding:'utf8'})
-      const users = JSON.parse(data);
-      const filteredUsers = users.filter(user=>user.id !== id)
-      if(filteredUsers.lenght){
-        fs.promises.writeFile('./user.json',JSON.stringify(filteredUsers),{encoding:'utf8'})
-        res.status(200).send("deleted user")
-      }
-      else{
-        next({status:404,message:"not found field"})
-      }
-    
+  router.delete('/:userId',auth, async (req,res,next)=>{
+    try{
+      const id = req.params.userId.toString().trim()
+      User.findByIdAndDelete(id, function(err){
+        if(err){
+          next({status:200, internalMessage:error.message});
+        }
+      res.send("delete")
+      })   
   } catch (error) {
-    next({status:500, internalMessage:error.message})
+    next({status:500, internalMessage:error.message});
   }
   });
   

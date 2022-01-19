@@ -1,12 +1,15 @@
+require('dotenv').config()
 const express = require('express')
-const fs = require('fs')
 const app = express()
 const port = 3200
 const bodyParser = require('body-parser')
 const userRouter = require('./routers/usersRouter')
-const {logRequest} = require('./generalHelpers')
-const { v4: uuidv4 } = require("uuid");
 const { validateUser ,validateloginUser} = require("./userHelpers")
+var jwt = require('jsonwebtoken');
+const serverConfig = require('./serverConfig')
+const { auth } = require('./middlewares/auth')
+const User = require('./models/User')
+require('./mongoConnect')
 
 app.use(bodyParser.json())
 /*
@@ -31,6 +34,12 @@ Bonus
 Edit patch end point to handle the sent data only
 If age is not sent return all users
 
+
+Lab 5: 
+user database instead of files
+user jwt to authenticate users after login 
+check if the user delete/patch/get his own document
+checl if user who use GET /user is authenticated
 
 git add .
 git commit -m "message"
