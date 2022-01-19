@@ -82,7 +82,7 @@ router.post("/", validateUser, async (req, res, next) => {
       const data = await fs.promises.readFile('./user.json',{encoding:'utf8'})
       const users = JSON.parse(data);
       const findUsers = users.find(user=>user.id===id)
-      return findUsers.length === 0 ? next({status:404,message:"not found field"}) : res.status(200).send(finddUsers)
+      return findUsers ? res.status(200).send(finddUsers):next({status:404,message:"not found field"})
     } catch (error) {
         next({status:500, internalMessage:error.message})
     }
@@ -95,7 +95,7 @@ router.post("/", validateUser, async (req, res, next) => {
       const data = await fs.promises.readFile('./user.json',{encoding:'utf8'})
       const users = JSON.parse(data);
       const filteredUsers = users.filter(user=>user.id !== id)
-      if(filteredUsers){
+      if(filteredUsers.lenght){
         fs.promises.writeFile('./user.json',JSON.stringify(filteredUsers),{encoding:'utf8'})
         res.status(200).send("deleted user")
       }
